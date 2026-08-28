@@ -1,0 +1,15 @@
+[Unit]
+Description=Cerebro do Sirius (voz, gesto, memoria e fala)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/sirius-brain
+EnvironmentFile=/opt/sirius-brain/config.env
+ExecStart=/usr/bin/python3 /opt/sirius-brain/sirius_brain.py
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

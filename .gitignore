@@ -1,0 +1,4 @@
+brain/config.env
+__pycache__/
+*.pyc
+memoria.json
