@@ -74,6 +74,27 @@ mas o nosso cérebro próprio NÃO depende — ele fala, ouve, move e vê pelo
 Core API local, e só sai para a internet para chamar o modelo (ModelArk ou
 Claude), o que já validamos que funciona.
 
+## Serviços BytePlus já contratados (nota da Cristini, 2026-09-14)
+
+A conta BytePlus da família já tem, além do LLM, os serviços de voz e
+memória — as chaves estão na nota pessoal da Cristini (nunca neste repo):
+
+| Serviço | O quê | Encaixe no plano |
+|---|---|---|
+| **ModelArk** (`ark.ap-southeast.bytepluses.com`) | LLM Dola-Seed-2.1-turbo via endpoint `ep-20260901203214-pbcr4` ("Conciencia"); Responses API com MCP e caching testada | **Pensar** — validado |
+| **BytePlus Voice TTS** (`voice.ap-southeast-1.bytepluses.com/api/v3/tts/*`) | seed-tts-2.0 (fala síncrona) e seed-audio-1.0 (fala expressiva); voice id clonada `S_h2kddmXc2` | **Falar** — gerar WAV/MP3 e tocar via `material/upload` do Core API |
+| **BytePlus ASR** (`.../api/v3/auc/bigmodel/*` e sauc) | seedasr (resource `volc.seedasr.sauc.duration` para streaming, `volc.seedasr.auc` para arquivo) | **Entender** — MESMA família do ASR nativo do robô (`volc.bigasr.sauc.duration` em openspeech.bytedance.com) |
+| **VikingDB** (`api-vikingdb.vikingdb.ap-southeast-1.bytepluses.com`) | Banco vetorial com coleção `Siriusmemory`, índice `sirius`; busca multimodal testada (`ouvir.py`) | **Memória** — alternativa/complemento ao memory.py local |
+| **Agente Ark** | Rascunho de agente "Hengbot Sirius" bilíngue PT-BR/EN com persona canina e bloco `<<<INTENT>>>` JSON para ROS2 | **Personalidade** — persona já escrita |
+
+**Hipótese nova para o OUVIR nativo:** o robô aceita
+`POST /api/v1/ai/credentials` com `asr.app_id/access_key/resource_id`.
+Como a conta já tem credenciais seedasr válidas da MESMA família
+(BytePlus internacional, região ap-southeast — alcançável de Londres,
+diferente do openspeech chinês), vale testar apontar o ASR nativo para
+elas antes de qualquer interceptação local. Se o firmware aceitar host
+internacional, o "entender" de fábrica volta com um único curl.
+
 ## Repositórios da comunidade (engenharia reversa) — achados de 2026-09
 
 Busca no GitHub por "hengbot sirius" revelou quatro repositórios de
