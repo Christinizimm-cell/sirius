@@ -110,7 +110,9 @@ App Android independente (firmware 2.4.3) — referência do protocolo do app.
 ### O que isso muda no diagnóstico
 1. O erro do painel provavelmente **não é falta de internet** do robô, e sim
    o firmware tentando alcançar endpoints Volcano/ByteDance fixos — que
-   podem estar inacessíveis a partir do Brasil. O `diagnostico.sh` continua
+   podem estar inacessíveis a partir de Londres, onde o robô mora (redes
+   do Reino Unido até a nuvem chinesa costumam ser instáveis ou
+   bloqueadas). O `diagnostico.sh` continua
    válido (elos 1–5), e o elo 6 (procurar a config de fábrica dentro do
    robô) passa a procurar também por hosts `volc`, `volces`, `bytedance`.
 2. Para "falar e entender" (nossa primeira meta), há dois caminhos já
