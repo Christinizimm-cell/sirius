@@ -80,6 +80,12 @@ case "$HTTP" in
     404) falha "a API não achou o endpoint (HTTP 404)" \
 "  O ARK_ENDPOINT_ID está errado ou é de outra região.
   Confira o ID (ep-...) em ModelArk → Online inference, região Johor." ;;
+    429) falha "a API recusou por limite/cota (HTTP 429)" \
+"  Chave e endpoint estão CERTOS — o serviço é que limitou:
+  1. Espere 1-2 minutos e rode o diagnóstico de novo (limite por minuto).
+  2. Se persistir: os tokens grátis (500k por modelo) podem ter acabado —
+     confira em console.byteplus.com → ModelArk → Usage, e o saldo/billing
+     da conta. Resposta da API: $CORPO" ;;
     *) falha "a API devolveu HTTP $HTTP" \
 "  Resposta da API: $CORPO
   Confira saldo/ativação do modelo no console do ModelArk." ;;
