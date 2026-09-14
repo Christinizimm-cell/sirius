@@ -12,6 +12,8 @@ voz** — tudo rodando dentro do próprio robô (cérebro RDK X3, Linux).
 | `brain/memory.py` | Memória persistente do cachorro (fatos + histórico), sobrevive a reinícios |
 | `brain/config.example.env` | Chaves e configurações (copiar para `config.env` e preencher) |
 | `brain/requirements.txt` | Dependências Python |
+| `brain/falar.py` | **Faz o Sirius falar agora:** texto → voz BytePlus → alto-falante dele |
+| `brain/conversar.py` | **Conversa com ele:** você digita ou fala, ele responde com a voz dele |
 | `deploy/consertar-llm.sh` | Correção nº 1: troca a chave do LLM do robô pela que está funcionando |
 | `deploy/vistoria-rapida.sh` | **Sem senha:** testa o cachorro só por HTTP (Core API, câmera, portas) |
 | `deploy/diagnostico.sh` | **Fase 1:** testa a corrente IA ↔ API ↔ robô elo por elo e aponta onde quebra |
