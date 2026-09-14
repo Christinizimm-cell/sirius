@@ -98,11 +98,22 @@ titulo "[3/6] Seu computador → cachorro (SSH em ${SIRIUS_HOST:-?})"
   Desktop, ou o app da Hengbot mostra o IP). Este passo e os seguintes
   precisam do robô ligado e no mesmo Wi-Fi que você."
 DESTINO="${SIRIUS_SSH_USER:-root}@$SIRIUS_HOST"
-if ! ssh -o ConnectTimeout=10 -o BatchMode=no "$DESTINO" true; then
+
+# Multiplexação: abre UMA conexão e reaproveita nos elos seguintes, para a
+# senha ser pedida uma única vez (o socket morre ao fim do script).
+SOCKET="/tmp/sirius-diag-$$.sock"
+limpar_ssh() { ssh -O exit -o ControlPath="$SOCKET" "$DESTINO" 2>/dev/null || true; }
+trap limpar_ssh EXIT
+ssh_robo() { ssh -o ControlMaster=auto -o ControlPath="$SOCKET" -o ControlPersist=120 "$@"; }
+
+echo "   (a senha do robô será pedida UMA vez; ela não aparece enquanto você"
+echo "    digita — cole e aperte Enter)"
+if ! ssh_robo -o ConnectTimeout=10 "$DESTINO" true; then
     falha "não consegui entrar por SSH em $DESTINO" \
 "  1. O cachorro está ligado e no mesmo Wi-Fi que o seu computador?
   2. O IP mudou? (roteadores trocam IP; confira no app/roteador)
-  3. Usuário/senha corretos? Teste manualmente: ssh $DESTINO"
+  3. Usuário/senha corretos? Teste manualmente: ssh $DESTINO
+  Dica: 'ssh-copy-id $DESTINO' (uma vez) dispensa a senha para sempre."
 fi
 verde "✅ SSH no cachorro OK"
 
@@ -130,7 +141,7 @@ fi
 
 # ---------------------------------------------------------------- elo 4
 titulo "[4/6] Cachorro → internet (DNS + HTTPS até $ARK_HOST, de DENTRO dele)"
-if ! ssh "$DESTINO" "curl -sS --max-time 20 -o /dev/null https://$ARK_HOST 2>&1 || wget -q --timeout=20 -O /dev/null https://$ARK_HOST 2>&1"; then
+if ! ssh_robo "$DESTINO" "curl -sS --max-time 20 -o /dev/null https://$ARK_HOST 2>&1 || wget -q --timeout=20 -O /dev/null https://$ARK_HOST 2>&1"; then
     falha "o CACHORRO não alcança $ARK_HOST (é aqui que o 网络异常 nasce)" \
 "  O robô está sem saída para a internet ou sem DNS:
   1. Confira o Wi-Fi do robô (pode estar numa rede sem internet/cativa).
@@ -141,7 +152,7 @@ fi
 verde "✅ O cachorro alcança a internet e o host da API"
 
 # Bônus: e o host de FALA da IA de fábrica (ASR Volcano/ByteDance)?
-if ssh "$DESTINO" "curl -sS --max-time 15 -o /dev/null https://openspeech.bytedance.com 2>/dev/null || wget -q --timeout=15 -O /dev/null https://openspeech.bytedance.com 2>/dev/null"; then
+if ssh_robo "$DESTINO" "curl -sS --max-time 15 -o /dev/null https://openspeech.bytedance.com 2>/dev/null || wget -q --timeout=15 -O /dev/null https://openspeech.bytedance.com 2>/dev/null"; then
     verde "✅ openspeech.bytedance.com alcançável — o OUVIR de fábrica tem rede"
 else
     vermelho "⚠️  openspeech.bytedance.com INACESSÍVEL de dentro do robô — é o
@@ -152,7 +163,7 @@ fi
 
 # ---------------------------------------------------------------- elo 5
 titulo "[5/6] Cachorro → API do modelo (a mesma chamada, de DENTRO dele)"
-HTTP_ROBO="$(ssh "$DESTINO" "curl -sS --max-time 60 -o /dev/null -w '%{http_code}' '$ARK_BASE_URL/chat/completions' \
+HTTP_ROBO="$(ssh_robo "$DESTINO" "curl -sS --max-time 60 -o /dev/null -w '%{http_code}' '$ARK_BASE_URL/chat/completions' \
     -H 'Authorization: Bearer $ARK_API_KEY' \
     -H 'Content-Type: application/json' \
     -d '{\"model\":\"$ARK_ENDPOINT_ID\",\"messages\":[{\"role\":\"user\",\"content\":\"ping\"}],\"max_tokens\":8}'" 2>/dev/null)"
