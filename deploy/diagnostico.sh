@@ -100,6 +100,15 @@ if ! ssh -o ConnectTimeout=10 -o BatchMode=no "$DESTINO" true; then
 fi
 verde "✅ SSH no cachorro OK"
 
+# Bônus: o Core API oficial do robô (porta 8088) está de pé?
+if curl -sS --max-time 10 -o /dev/null "http://$SIRIUS_HOST:8088/api/v1/system/ping"; then
+    verde "✅ Sirius Core API respondendo em $SIRIUS_HOST:8088 (docs/API-SIRIUS-CORE.md)"
+else
+    vermelho "⚠️  Core API (porta 8088) não respondeu — o cérebro próprio vai
+    precisar dele para falar/mover/ver. Siga o diagnóstico; se o resto
+    passar, confira se o serviço core_api_node está rodando no robô."
+fi
+
 # ---------------------------------------------------------------- elo 4
 titulo "[4/6] Cachorro → internet (DNS + HTTPS até $ARK_HOST, de DENTRO dele)"
 if ! ssh "$DESTINO" "curl -sS --max-time 20 -o /dev/null https://$ARK_HOST 2>&1 || wget -q --timeout=20 -O /dev/null https://$ARK_HOST 2>&1"; then

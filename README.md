@@ -16,6 +16,7 @@ voz** — tudo rodando dentro do próprio robô (cérebro RDK X3, Linux).
 | `deploy/deploy.sh` | Instala tudo no cachorro via SSH com um único comando |
 | `deploy/sirius-brain.service` | Serviço systemd — o cérebro liga sozinho quando o cachorro liga |
 | `docs/PESQUISA-HENGBOT-SIRIUS.md` | Tudo que foi pesquisado sobre o Hengbot Sirius, com fontes |
+| `docs/API-SIRIUS-CORE.md` | **Referência oficial** Sirius Core API v4.0.0 (HTTP 8088, WS 8765, vídeo 8080) |
 
 ## Fase 1 — Descobrir onde a comunicação quebra (antes de mudar qualquer coisa)
 

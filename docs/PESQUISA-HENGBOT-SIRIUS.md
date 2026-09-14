@@ -39,6 +39,41 @@ de IA do Sirius. Ele não é alcançável a partir de ambientes de nuvem com
 rede restrita — precisa ser acessado de um computador na mesma rede do
 cachorro (ou com rota até o host do painel).
 
+## A API oficial (docs/API-SIRIUS-CORE.md) — o mapa definitivo
+
+A referência oficial **Sirius Core API v4.0.0** (do documento da pasta
+Chanel) está salva em [`docs/API-SIRIUS-CORE.md`](API-SIRIUS-CORE.md). Ela
+roda NO robô e expõe tudo por HTTP/WebSocket — o que muda o plano: **quase
+nada precisa de engenharia reversa**, só de conexão.
+
+Portas (no IP do robô na rede local):
+- **8088** — HTTP REST (`/api/v1/...`)
+- **8765** — WebSocket (JSON; eventos em tempo real) — *nota: o dev-kit da
+  comunidade cita 8766 para sinalização WebRTC; a oficial de WS é 8765*
+- **8080** — vídeo MJPEG em `/video_stream`
+
+Mapa das nossas fases → endpoints oficiais:
+
+| Fase | O que usar |
+|---|---|
+| **Falar** | `POST /api/v1/material/upload` (WAV toca no alto-falante) e `combo-play` (áudio+ação+LED juntos) |
+| **Entender** | `POST /api/v1/hardware/audio/record/control` (start/stop gravação do microfone) |
+| **Movimento** | `ACTION_PLAY` (ações prontas), `GaitService` (andar/virar), `TransformService` (postura corpo/cabeça) |
+| **Personalidade** | `USER_SET_MBTI` (eixos E/I, S/N, T/F, J/P 0–100) e `EmotionService` (valência/excitação, saciedade) |
+| **Memória** | Nossa (brain/memory.py) — não existe na API |
+| **Visão** | `GET /api/v1/vision/faces|gestures|objects`, evento `vision-detection`, e MJPEG `:8080/video_stream` — **já pronta, é só consumir** |
+
+Extras úteis: `GET /api/v1/system/ping` (health check — bom para o
+diagnóstico), `GET /api/v1/openapi-map?audience=ai` (lista as interfaces
+liberadas para IA), evento `ai-state-changed` (AIStateService), WebSocket
+com `?audience=ai`, máx. 10 conexões simultâneas.
+
+Consequência para o erro `网络异常`: o serviço de conversa de fábrica
+(painel Mundo Interior) continua dependendo da nuvem Volcano/ByteDance,
+mas o nosso cérebro próprio NÃO depende — ele fala, ouve, move e vê pelo
+Core API local, e só sai para a internet para chamar o modelo (ModelArk ou
+Claude), o que já validamos que funciona.
+
 ## Repositórios da comunidade (engenharia reversa) — achados de 2026-09
 
 Busca no GitHub por "hengbot sirius" revelou quatro repositórios de
