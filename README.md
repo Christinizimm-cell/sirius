@@ -12,6 +12,7 @@ voz** — tudo rodando dentro do próprio robô (cérebro RDK X3, Linux).
 | `brain/memory.py` | Memória persistente do cachorro (fatos + histórico), sobrevive a reinícios |
 | `brain/config.example.env` | Chaves e configurações (copiar para `config.env` e preencher) |
 | `brain/requirements.txt` | Dependências Python |
+| `deploy/consertar-llm.sh` | Correção nº 1: troca a chave do LLM do robô pela que está funcionando |
 | `deploy/vistoria-rapida.sh` | **Sem senha:** testa o cachorro só por HTTP (Core API, câmera, portas) |
 | `deploy/diagnostico.sh` | **Fase 1:** testa a corrente IA ↔ API ↔ robô elo por elo e aponta onde quebra |
 | `deploy/deploy.sh` | Instala tudo no cachorro via SSH com um único comando |
@@ -32,9 +33,12 @@ O que já sabemos (validado em 2026-09):
 - ✅ A API do ModelArk funciona a partir do Mac: endpoint `Conciencia`
   (`ep-20260901203214-pbcr4`, modelo Dola-Seed-2.1-turbo, região Johor)
   respondeu ao teste com a chave da conta.
-- ❌ O painel "Mundo Interior" do robô mostra `网络异常, 未能连上模型服务`
-  ("erro de rede: não conectou ao serviço de modelo") — a falha está em
-  algum elo entre **o robô** e a API, não na API em si.
+- **CAUSA RAIZ ENCONTRADA:** o `网络异常` do painel **não é rede**. O robô já
+  está configurado para o nosso ModelArk (lido em
+  `/api/v1/ai/credentials/status`), mas a API responde 429: o modelo
+  dola-seed-2-1-turbo está **pausado pelo Safe Experience Mode** na conta.
+  Detalhes e as duas correções em
+  [`docs/PESQUISA-HENGBOT-SIRIUS.md`](docs/PESQUISA-HENGBOT-SIRIUS.md).
 
 Para achar o elo exato, rode no seu computador (mesma rede do cachorro):
 

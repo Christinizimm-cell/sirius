@@ -74,6 +74,49 @@ mas o nosso cérebro próprio NÃO depende — ele fala, ouve, move e vê pelo
 Core API local, e só sai para a internet para chamar o modelo (ModelArk ou
 Claude), o que já validamos que funciona.
 
+## CAUSA RAIZ DO `网络异常` — encontrada em 2026-09-14
+
+A leitura de `GET /api/v1/ai/credentials/status` (sem SSH, só HTTP na porta
+8088) mostrou que **o robô JÁ está configurado corretamente**, apontando
+para a nossa conta BytePlus internacional: `llm.base_url` para o ModelArk
+em ap-southeast, modelo dola-seed-2-1-turbo, provider openai, com chave
+gravada; ASR no recurso internacional seedasr; TTS em seed-tts-2.0 com voz
+própria já selecionada.
+
+**A prova de que não é rede:** o identificador de conta que aparece na
+configuração do robô é o MESMO citado na resposta de erro que a API nos
+devolveu — um 429 dizendo que o modelo atingiu o limite de inferência
+configurado e que **o serviço do modelo foi pausado**, com instrução de
+visitar a página de Model Activation para ajustar ou desligar o
+"Safe Experience Mode".
+
+Ou seja: o robô alcança a API perfeitamente; a API é que recusa porque o
+modelo está pausado para a conta. O firmware traduz qualquer falha da
+chamada como "网络异常" (anomalia de rede) — mensagem enganosa.
+
+Isso derruba as hipóteses anteriores: não precisamos de shim local, nem de
+interceptar `openspeech.bytedance.com` (o robô usa o ASR internacional, não
+o chinês), nem trocar o `llm.base_url`, que já está certo.
+
+### Correções, da mais direta para a alternativa
+1. **Console:** ModelArk → *Model activation* → dola-seed-2-1-turbo →
+   ajustar ou desligar o **Safe Experience Mode**. Resolve para tudo (robô,
+   painel, nossos scripts) de uma vez.
+2. **Trocar a chave do robô** (`deploy/consertar-llm.sh`): a chave gravada
+   no robô não é nenhuma das que temos; uma das nossas respondeu HTTP 200
+   com esse mesmo modelo enquanto outra levava 429, então a troca pode
+   destravar sem mexer no console.
+
+### Outros achados da vistoria por HTTP
+- `GET /api/v1/vision/gestures` responde OK (0 gestos no momento) — a visão
+  de gestos está VIVA.
+- `GET /api/v1/vision/faces` devolve HTTP 503 — serviço de rosto não
+  iniciado; tentar `POST /api/v1/vision/detection {"enabled":true}` e
+  `POST /api/v1/vision/face-tracking {"enabled":true}`.
+- Portas: 8765 (WebSocket) e 8080 (vídeo MJPEG) **abertas**; 8082 fechada —
+  o painel AI Studio não roda nessa porta neste firmware.
+- TTS já tem voz própria configurada (`voice_override: true`).
+
 ## Acesso SSH ao robô — credenciais (2026-09-14)
 
 O cérebro é uma placa **D-Robotics RDK X3** rodando Ubuntu. Ela tem um
