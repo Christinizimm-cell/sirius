@@ -12,6 +12,7 @@ voz** — tudo rodando dentro do próprio robô (cérebro RDK X3, Linux).
 | `brain/memory.py` | Memória persistente do cachorro (fatos + histórico), sobrevive a reinícios |
 | `brain/config.example.env` | Chaves e configurações (copiar para `config.env` e preencher) |
 | `brain/requirements.txt` | Dependências Python |
+| `deploy/vistoria-rapida.sh` | **Sem senha:** testa o cachorro só por HTTP (Core API, câmera, portas) |
 | `deploy/diagnostico.sh` | **Fase 1:** testa a corrente IA ↔ API ↔ robô elo por elo e aponta onde quebra |
 | `deploy/deploy.sh` | Instala tudo no cachorro via SSH com um único comando |
 | `deploy/sirius-brain.service` | Serviço systemd — o cérebro liga sozinho quando o cachorro liga |
