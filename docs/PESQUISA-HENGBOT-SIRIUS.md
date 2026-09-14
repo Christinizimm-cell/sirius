@@ -100,6 +100,45 @@ O projeto contorna isso **impersonando os endpoints Volcano na rede local**
 (`/etc/hosts` + iptables + certificado TLS próprio) com Whisper local — ou
 seja: dá para substituir o serviço de voz/modelo sem tocar no app oficial.
 
+### Mergulho no código do voice-bridge (clonado e lido em 2026-09-14)
+
+Lendo o código-fonte (não só o README), os fatos que mudam o nosso jogo:
+
+1. **O host exato que o robô precisa alcançar para OUVIR:**
+   `wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async` — o ASR
+   (fala→texto) da Volcano. Protocolo capturado em PROTOCOL.md do projeto:
+   frames binários com JSON+gzip, PCM 16 kHz mono, **sem TLS pinning**
+   (por isso a interceptação local funciona).
+2. **O LLM do robô é CONFIGURÁVEL por REST, sem hack nenhum:**
+   - `GET  http://ROBÔ:8088/api/v1/ai/credentials/status` — mostra para
+     onde a IA nativa aponta hoje (inclui `llm.base_url`).
+   - `POST http://ROBÔ:8088/api/v1/ai/credentials` — grava credenciais
+     novas (o autor apontou `llm.base_url` para um Ollama local
+     `http://IP:11434/v1`, ou seja, **qualquer URL OpenAI-compatível
+     serve** — o ModelArk é OpenAI-compatível!).
+   Esse endpoint não aparece na API-SIRIUS-CORE.md v4.0.0 (firmware
+   2.4.8 do autor); confirmar se existe no nosso firmware.
+3. **Sessão de escuta:** só ouve depois de tocar "AI Talk" na tela do
+   rosto. Hands-free comprovado injetando um toque em `/dev/input/event0`
+   (tela é `cst816d_ts`; tap em (101,142); `python-evdev` já vem no robô)
+   e esticando `onset_timeout_ms` do nó `ai_interaction_node` via o REST
+   de node-parameter que já temos documentado.
+4. **Pegadinhas documentadas:** o DNAT de iptables NÃO sobrevive a
+   reboot do robô (o `/etc/hosts` sim); microfone far-field é fraco
+   (ganho/limiares ajustados no projeto); "o cachorro responde em chinês"
+   = locale do personagem ativo.
+5. **Ecossistema do mesmo autor:** [`sirius-llm`](https://github.com/dspeers/sirius-llm)
+   (cérebro Qwen local via Ollama) e o control-panel abaixo monitoram tudo.
+
+**Hipótese de correção mais curta para o painel Mundo Interior:** apontar
+`llm.base_url` do robô para o ModelArk (`https://ark.ap-southeast.bytepluses.com/api/v3`)
+com a nossa chave — se o campo aceitar URL externa e a chave for passada,
+o "serviço de modelo" volta sem tocar em nada do firmware. O que NÃO
+resolve sozinho é o OUVIR: o ASR continua indo para
+`openspeech.bytedance.com`; se esse host estiver bloqueado a partir de
+Londres, o caminho é o shim local (Whisper) do voice-bridge ou o nosso
+cérebro próprio.
+
 ### [dspeers/sirius-control-panel](https://github.com/dspeers/sirius-control-panel)
 Painel web local em **um único arquivo Python, sem dependências** (câmera,
 direção, poses, ações) — ótima referência de integração mínima.

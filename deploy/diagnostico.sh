@@ -103,6 +103,19 @@ verde "✅ SSH no cachorro OK"
 # Bônus: o Core API oficial do robô (porta 8088) está de pé?
 if curl -sS --max-time 10 -o /dev/null "http://$SIRIUS_HOST:8088/api/v1/system/ping"; then
     verde "✅ Sirius Core API respondendo em $SIRIUS_HOST:8088 (docs/API-SIRIUS-CORE.md)"
+
+    # Para onde a IA NATIVA do robô aponta hoje? (endpoint achado pela
+    # comunidade — pode não existir em todo firmware; leitura apenas)
+    CRED="$(curl -sS --max-time 10 "http://$SIRIUS_HOST:8088/api/v1/ai/credentials/status" 2>/dev/null)"
+    if [[ -n "$CRED" ]]; then
+        echo "ℹ️  Configuração atual da IA de fábrica (ai/credentials/status):"
+        echo "$CRED"
+        echo "   → se llm.base_url apontar para um host inacessível, ESTE é o"
+        echo "     motivo do 网络异常 no painel. Ver a hipótese de correção em"
+        echo "     docs/PESQUISA-HENGBOT-SIRIUS.md (apontar para o ModelArk)."
+    else
+        echo "ℹ️  /api/v1/ai/credentials/status não existe neste firmware (ok, siga)."
+    fi
 else
     vermelho "⚠️  Core API (porta 8088) não respondeu — o cérebro próprio vai
     precisar dele para falar/mover/ver. Siga o diagnóstico; se o resto
@@ -120,6 +133,16 @@ if ! ssh "$DESTINO" "curl -sS --max-time 20 -o /dev/null https://$ARK_HOST 2>&1 
   3. Roteador com bloqueio de sites/regiões? Libere $ARK_HOST."
 fi
 verde "✅ O cachorro alcança a internet e o host da API"
+
+# Bônus: e o host de FALA da IA de fábrica (ASR Volcano/ByteDance)?
+if ssh "$DESTINO" "curl -sS --max-time 15 -o /dev/null https://openspeech.bytedance.com 2>/dev/null || wget -q --timeout=15 -O /dev/null https://openspeech.bytedance.com 2>/dev/null"; then
+    verde "✅ openspeech.bytedance.com alcançável — o OUVIR de fábrica tem rede"
+else
+    vermelho "⚠️  openspeech.bytedance.com INACESSÍVEL de dentro do robô — é o
+    ASR (fala→texto) da IA de fábrica. Se o painel reclama de rede ao
+    falar com o cachorro, é provável que seja isto. Saídas mapeadas em
+    docs/PESQUISA-HENGBOT-SIRIUS.md (shim Whisper local ou cérebro próprio)."
+fi
 
 # ---------------------------------------------------------------- elo 5
 titulo "[5/6] Cachorro → API do modelo (a mesma chamada, de DENTRO dele)"
