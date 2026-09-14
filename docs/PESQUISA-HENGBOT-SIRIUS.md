@@ -74,6 +74,22 @@ mas o nosso cérebro próprio NÃO depende — ele fala, ouve, move e vê pelo
 Core API local, e só sai para a internet para chamar o modelo (ModelArk ou
 Claude), o que já validamos que funciona.
 
+## Acesso SSH ao robô — credenciais (2026-09-14)
+
+O cérebro é uma placa **D-Robotics RDK X3** rodando Ubuntu. Ela tem um
+usuário padrão de fábrica que NÃO é o root:
+
+- usuário `sunrise`, senha `sunrise` (padrão da RDK X3, conforme a
+  documentação oficial da D-Robotics e os wikis da Waveshare)
+- IP do nosso Sirius na rede de casa: `192.168.0.48` (porta 22 aberta,
+  host key ED25519 aceita; o SSH responde)
+
+Tentativa com `root` + a senha da nota deu `Permission denied` — logo, ou
+a senha da nota pertence a outro usuário/serviço (app, painel), ou o root
+não aceita senha. Testar `sunrise` primeiro. Depois de descobrir qual
+funciona, gravar em `SIRIUS_SSH_USER` no `brain/config.env` e rodar
+`ssh-copy-id` para dispensar a senha nas próximas vezes.
+
 ## Serviços BytePlus já contratados (nota da Cristini, 2026-09-14)
 
 A conta BytePlus da família já tem, além do LLM, os serviços de voz e

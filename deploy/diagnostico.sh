@@ -112,8 +112,13 @@ if ! ssh_robo -o ConnectTimeout=10 "$DESTINO" true; then
     falha "não consegui entrar por SSH em $DESTINO" \
 "  1. O cachorro está ligado e no mesmo Wi-Fi que o seu computador?
   2. O IP mudou? (roteadores trocam IP; confira no app/roteador)
-  3. Usuário/senha corretos? Teste manualmente: ssh $DESTINO
-  Dica: 'ssh-copy-id $DESTINO' (uma vez) dispensa a senha para sempre."
+  3. Usuário/senha: 'Permission denied' = credencial errada. O cérebro do
+     Sirius é uma placa D-Robotics RDK X3, cujo usuário PADRÃO é
+     'sunrise' (senha 'sunrise') — não 'root'. Teste, nesta ordem:
+       ssh sunrise@$SIRIUS_HOST     (senha: sunrise)
+       ssh root@$SIRIUS_HOST        (senha: a da sua nota, ou a alternativa)
+     O que funcionar, ponha em SIRIUS_SSH_USER no brain/config.env.
+  Dica: 'ssh-copy-id USUARIO@$SIRIUS_HOST' (uma vez) dispensa a senha."
 fi
 verde "✅ SSH no cachorro OK"
 
