@@ -12,9 +12,48 @@ voz** — tudo rodando dentro do próprio robô (cérebro RDK X3, Linux).
 | `brain/memory.py` | Memória persistente do cachorro (fatos + histórico), sobrevive a reinícios |
 | `brain/config.example.env` | Chaves e configurações (copiar para `config.env` e preencher) |
 | `brain/requirements.txt` | Dependências Python |
+| `brain/falar.py` | **Faz o Sirius falar agora:** texto → voz BytePlus → alto-falante dele |
+| `brain/conversar.py` | **Conversa com ele:** você digita ou fala, ele responde com a voz dele |
+| `deploy/consertar-llm.sh` | Correção nº 1: troca a chave do LLM do robô pela que está funcionando |
+| `deploy/vistoria-rapida.sh` | **Sem senha:** testa o cachorro só por HTTP (Core API, câmera, portas) |
+| `deploy/diagnostico.sh` | **Fase 1:** testa a corrente IA ↔ API ↔ robô elo por elo e aponta onde quebra |
 | `deploy/deploy.sh` | Instala tudo no cachorro via SSH com um único comando |
 | `deploy/sirius-brain.service` | Serviço systemd — o cérebro liga sozinho quando o cachorro liga |
 | `docs/PESQUISA-HENGBOT-SIRIUS.md` | Tudo que foi pesquisado sobre o Hengbot Sirius, com fontes |
+| `docs/API-SIRIUS-CORE.md` | **Referência oficial** Sirius Core API v4.0.0 (HTTP 8088, WS 8765, vídeo 8080) |
+
+## Fase 1 — Descobrir onde a comunicação quebra (antes de mudar qualquer coisa)
+
+O plano é em duas fases: primeiro **engenharia reversa** para achar o ponto
+exato de falha; depois correções pontuais, uma por vez, sempre testando.
+Ordem de construção: falar/entender → movimento → personalidade → memória →
+visão (a visão já existe no hardware — câmera 8 MP e reconhecimento de
+gestos/pessoas; não vamos criá-la, vamos aprender a acessá-la).
+
+O que já sabemos (validado em 2026-09):
+
+- ✅ A API do ModelArk funciona a partir do Mac: endpoint `Conciencia`
+  (`ep-20260901203214-pbcr4`, modelo Dola-Seed-2.1-turbo, região Johor)
+  respondeu ao teste com a chave da conta.
+- **CAUSA RAIZ ENCONTRADA:** o `网络异常` do painel **não é rede**. O robô já
+  está configurado para o nosso ModelArk (lido em
+  `/api/v1/ai/credentials/status`), mas a API responde 429: o modelo
+  dola-seed-2-1-turbo está **pausado pelo Safe Experience Mode** na conta.
+  Detalhes e as duas correções em
+  [`docs/PESQUISA-HENGBOT-SIRIUS.md`](docs/PESQUISA-HENGBOT-SIRIUS.md).
+
+Para achar o elo exato, rode no seu computador (mesma rede do cachorro):
+
+```bash
+cp brain/config.example.env brain/config.env   # só na primeira vez
+# preencha ARK_API_KEY e SIRIUS_HOST no config.env
+./deploy/diagnostico.sh
+```
+
+O script testa um elo por vez (seu computador → internet → API → robô →
+internet do robô → API de dentro do robô), **para no primeiro que falhar**
+e diz o que corrigir. Ele não instala nem altera nada no robô, e a chave
+só é enviada à própria API — nunca a outro serviço.
 
 ## Como instalar no cachorro (passo a passo)
 

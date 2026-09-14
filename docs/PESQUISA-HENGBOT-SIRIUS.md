@@ -39,6 +39,208 @@ de IA do Sirius. Ele não é alcançável a partir de ambientes de nuvem com
 rede restrita — precisa ser acessado de um computador na mesma rede do
 cachorro (ou com rota até o host do painel).
 
+## A API oficial (docs/API-SIRIUS-CORE.md) — o mapa definitivo
+
+A referência oficial **Sirius Core API v4.0.0** (do documento da pasta
+Chanel) está salva em [`docs/API-SIRIUS-CORE.md`](API-SIRIUS-CORE.md). Ela
+roda NO robô e expõe tudo por HTTP/WebSocket — o que muda o plano: **quase
+nada precisa de engenharia reversa**, só de conexão.
+
+Portas (no IP do robô na rede local):
+- **8088** — HTTP REST (`/api/v1/...`)
+- **8765** — WebSocket (JSON; eventos em tempo real) — *nota: o dev-kit da
+  comunidade cita 8766 para sinalização WebRTC; a oficial de WS é 8765*
+- **8080** — vídeo MJPEG em `/video_stream`
+
+Mapa das nossas fases → endpoints oficiais:
+
+| Fase | O que usar |
+|---|---|
+| **Falar** | `POST /api/v1/material/upload` (WAV toca no alto-falante) e `combo-play` (áudio+ação+LED juntos) |
+| **Entender** | `POST /api/v1/hardware/audio/record/control` (start/stop gravação do microfone) |
+| **Movimento** | `ACTION_PLAY` (ações prontas), `GaitService` (andar/virar), `TransformService` (postura corpo/cabeça) |
+| **Personalidade** | `USER_SET_MBTI` (eixos E/I, S/N, T/F, J/P 0–100) e `EmotionService` (valência/excitação, saciedade) |
+| **Memória** | Nossa (brain/memory.py) — não existe na API |
+| **Visão** | `GET /api/v1/vision/faces|gestures|objects`, evento `vision-detection`, e MJPEG `:8080/video_stream` — **já pronta, é só consumir** |
+
+Extras úteis: `GET /api/v1/system/ping` (health check — bom para o
+diagnóstico), `GET /api/v1/openapi-map?audience=ai` (lista as interfaces
+liberadas para IA), evento `ai-state-changed` (AIStateService), WebSocket
+com `?audience=ai`, máx. 10 conexões simultâneas.
+
+Consequência para o erro `网络异常`: o serviço de conversa de fábrica
+(painel Mundo Interior) continua dependendo da nuvem Volcano/ByteDance,
+mas o nosso cérebro próprio NÃO depende — ele fala, ouve, move e vê pelo
+Core API local, e só sai para a internet para chamar o modelo (ModelArk ou
+Claude), o que já validamos que funciona.
+
+## CAUSA RAIZ DO `网络异常` — encontrada em 2026-09-14
+
+A leitura de `GET /api/v1/ai/credentials/status` (sem SSH, só HTTP na porta
+8088) mostrou que **o robô JÁ está configurado corretamente**, apontando
+para a nossa conta BytePlus internacional: `llm.base_url` para o ModelArk
+em ap-southeast, modelo dola-seed-2-1-turbo, provider openai, com chave
+gravada; ASR no recurso internacional seedasr; TTS em seed-tts-2.0 com voz
+própria já selecionada.
+
+**A prova de que não é rede:** o identificador de conta que aparece na
+configuração do robô é o MESMO citado na resposta de erro que a API nos
+devolveu — um 429 dizendo que o modelo atingiu o limite de inferência
+configurado e que **o serviço do modelo foi pausado**, com instrução de
+visitar a página de Model Activation para ajustar ou desligar o
+"Safe Experience Mode".
+
+Ou seja: o robô alcança a API perfeitamente; a API é que recusa porque o
+modelo está pausado para a conta. O firmware traduz qualquer falha da
+chamada como "网络异常" (anomalia de rede) — mensagem enganosa.
+
+Isso derruba as hipóteses anteriores: não precisamos de shim local, nem de
+interceptar `openspeech.bytedance.com` (o robô usa o ASR internacional, não
+o chinês), nem trocar o `llm.base_url`, que já está certo.
+
+### Correções, da mais direta para a alternativa
+1. **Console:** ModelArk → *Model activation* → dola-seed-2-1-turbo →
+   ajustar ou desligar o **Safe Experience Mode**. Resolve para tudo (robô,
+   painel, nossos scripts) de uma vez.
+2. **Trocar a chave do robô** (`deploy/consertar-llm.sh`): a chave gravada
+   no robô não é nenhuma das que temos; uma das nossas respondeu HTTP 200
+   com esse mesmo modelo enquanto outra levava 429, então a troca pode
+   destravar sem mexer no console.
+
+### Outros achados da vistoria por HTTP
+- `GET /api/v1/vision/gestures` responde OK (0 gestos no momento) — a visão
+  de gestos está VIVA.
+- `GET /api/v1/vision/faces` devolve HTTP 503 — serviço de rosto não
+  iniciado; tentar `POST /api/v1/vision/detection {"enabled":true}` e
+  `POST /api/v1/vision/face-tracking {"enabled":true}`.
+- Portas: 8765 (WebSocket) e 8080 (vídeo MJPEG) **abertas**; 8082 fechada —
+  o painel AI Studio não roda nessa porta neste firmware.
+- TTS já tem voz própria configurada (`voice_override: true`).
+
+## Acesso SSH ao robô — credenciais (2026-09-14)
+
+O cérebro é uma placa **D-Robotics RDK X3** rodando Ubuntu. Ela tem um
+usuário padrão de fábrica que NÃO é o root:
+
+- usuário `sunrise`, senha `sunrise` (padrão da RDK X3, conforme a
+  documentação oficial da D-Robotics e os wikis da Waveshare)
+- IP do nosso Sirius na rede de casa: `192.168.0.48` (porta 22 aberta,
+  host key ED25519 aceita; o SSH responde)
+
+Tentativa com `root` + a senha da nota deu `Permission denied` — logo, ou
+a senha da nota pertence a outro usuário/serviço (app, painel), ou o root
+não aceita senha. Testar `sunrise` primeiro. Depois de descobrir qual
+funciona, gravar em `SIRIUS_SSH_USER` no `brain/config.env` e rodar
+`ssh-copy-id` para dispensar a senha nas próximas vezes.
+
+## Serviços BytePlus já contratados (nota da Cristini, 2026-09-14)
+
+A conta BytePlus da família já tem, além do LLM, os serviços de voz e
+memória — as chaves estão na nota pessoal da Cristini (nunca neste repo):
+
+| Serviço | O quê | Encaixe no plano |
+|---|---|---|
+| **ModelArk** (`ark.ap-southeast.bytepluses.com`) | LLM Dola-Seed-2.1-turbo via endpoint `ep-20260901203214-pbcr4` ("Conciencia"); Responses API com MCP e caching testada | **Pensar** — validado |
+| **BytePlus Voice TTS** (`voice.ap-southeast-1.bytepluses.com/api/v3/tts/*`) | seed-tts-2.0 (fala síncrona) e seed-audio-1.0 (fala expressiva); voice id clonada `S_h2kddmXc2` | **Falar** — gerar WAV/MP3 e tocar via `material/upload` do Core API |
+| **BytePlus ASR** (`.../api/v3/auc/bigmodel/*` e sauc) | seedasr (resource `volc.seedasr.sauc.duration` para streaming, `volc.seedasr.auc` para arquivo) | **Entender** — MESMA família do ASR nativo do robô (`volc.bigasr.sauc.duration` em openspeech.bytedance.com) |
+| **VikingDB** (`api-vikingdb.vikingdb.ap-southeast-1.bytepluses.com`) | Banco vetorial com coleção `Siriusmemory`, índice `sirius`; busca multimodal testada (`ouvir.py`) | **Memória** — alternativa/complemento ao memory.py local |
+| **Agente Ark** | Rascunho de agente "Hengbot Sirius" bilíngue PT-BR/EN com persona canina e bloco `<<<INTENT>>>` JSON para ROS2 | **Personalidade** — persona já escrita |
+
+**Hipótese nova para o OUVIR nativo:** o robô aceita
+`POST /api/v1/ai/credentials` com `asr.app_id/access_key/resource_id`.
+Como a conta já tem credenciais seedasr válidas da MESMA família
+(BytePlus internacional, região ap-southeast — alcançável de Londres,
+diferente do openspeech chinês), vale testar apontar o ASR nativo para
+elas antes de qualquer interceptação local. Se o firmware aceitar host
+internacional, o "entender" de fábrica volta com um único curl.
+
+## Repositórios da comunidade (engenharia reversa) — achados de 2026-09
+
+Busca no GitHub por "hengbot sirius" revelou quatro repositórios de
+engenharia reversa que mapeiam quase tudo que precisamos:
+
+### [PHCsubOceana/sirius-dev-kit](https://github.com/PHCsubOceana/sirius-dev-kit)
+Documentação não-oficial **verificada em máquina real** (atualizada em set/2026):
+- **Protocolo WebSocket de 59 comandos** (nomes em maiúsculas) — movimento.
+- **REST API nas portas 8088, 8080 e 8766**.
+- **Câmera via WebRTC na porta 8766** — é o caminho para a VISÃO que já
+  existe no hardware (não precisamos criar, só conectar aqui).
+- **~130 tópicos ROS 2, 29 nós**; IMU (quaternion/aceleração) e sensor de
+  distância ToF 4×4 (desabilitado no firmware 2.5.5); telemetria dos 14
+  motores.
+- Inclui o "Studio 360": painel de controle em navegador (FastAPI + React).
+
+### [dspeers/sirius-voice-bridge](https://github.com/dspeers/sirius-voice-bridge)
+**A peça-chave do nosso erro `网络异常`:** o software de fábrica do robô
+fala/entende chamando as **APIs de voz Volcano (Volcengine/ByteDance) na
+nuvem** — hosts chineses embutidos no firmware. Se o robô não alcança esses
+servidores (região, DNS, bloqueio), o painel mostra "erro de rede: não
+conectou ao serviço de modelo", MESMO com a internet do robô funcionando.
+O projeto contorna isso **impersonando os endpoints Volcano na rede local**
+(`/etc/hosts` + iptables + certificado TLS próprio) com Whisper local — ou
+seja: dá para substituir o serviço de voz/modelo sem tocar no app oficial.
+
+### Mergulho no código do voice-bridge (clonado e lido em 2026-09-14)
+
+Lendo o código-fonte (não só o README), os fatos que mudam o nosso jogo:
+
+1. **O host exato que o robô precisa alcançar para OUVIR:**
+   `wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async` — o ASR
+   (fala→texto) da Volcano. Protocolo capturado em PROTOCOL.md do projeto:
+   frames binários com JSON+gzip, PCM 16 kHz mono, **sem TLS pinning**
+   (por isso a interceptação local funciona).
+2. **O LLM do robô é CONFIGURÁVEL por REST, sem hack nenhum:**
+   - `GET  http://ROBÔ:8088/api/v1/ai/credentials/status` — mostra para
+     onde a IA nativa aponta hoje (inclui `llm.base_url`).
+   - `POST http://ROBÔ:8088/api/v1/ai/credentials` — grava credenciais
+     novas (o autor apontou `llm.base_url` para um Ollama local
+     `http://IP:11434/v1`, ou seja, **qualquer URL OpenAI-compatível
+     serve** — o ModelArk é OpenAI-compatível!).
+   Esse endpoint não aparece na API-SIRIUS-CORE.md v4.0.0 (firmware
+   2.4.8 do autor); confirmar se existe no nosso firmware.
+3. **Sessão de escuta:** só ouve depois de tocar "AI Talk" na tela do
+   rosto. Hands-free comprovado injetando um toque em `/dev/input/event0`
+   (tela é `cst816d_ts`; tap em (101,142); `python-evdev` já vem no robô)
+   e esticando `onset_timeout_ms` do nó `ai_interaction_node` via o REST
+   de node-parameter que já temos documentado.
+4. **Pegadinhas documentadas:** o DNAT de iptables NÃO sobrevive a
+   reboot do robô (o `/etc/hosts` sim); microfone far-field é fraco
+   (ganho/limiares ajustados no projeto); "o cachorro responde em chinês"
+   = locale do personagem ativo.
+5. **Ecossistema do mesmo autor:** [`sirius-llm`](https://github.com/dspeers/sirius-llm)
+   (cérebro Qwen local via Ollama) e o control-panel abaixo monitoram tudo.
+
+**Hipótese de correção mais curta para o painel Mundo Interior:** apontar
+`llm.base_url` do robô para o ModelArk (`https://ark.ap-southeast.bytepluses.com/api/v3`)
+com a nossa chave — se o campo aceitar URL externa e a chave for passada,
+o "serviço de modelo" volta sem tocar em nada do firmware. O que NÃO
+resolve sozinho é o OUVIR: o ASR continua indo para
+`openspeech.bytedance.com`; se esse host estiver bloqueado a partir de
+Londres, o caminho é o shim local (Whisper) do voice-bridge ou o nosso
+cérebro próprio.
+
+### [dspeers/sirius-control-panel](https://github.com/dspeers/sirius-control-panel)
+Painel web local em **um único arquivo Python, sem dependências** (câmera,
+direção, poses, ações) — ótima referência de integração mínima.
+
+### [phichua/sirius-android](https://github.com/phichua/sirius-android)
+App Android independente (firmware 2.4.3) — referência do protocolo do app.
+
+### O que isso muda no diagnóstico
+1. O erro do painel provavelmente **não é falta de internet** do robô, e sim
+   o firmware tentando alcançar endpoints Volcano/ByteDance fixos — que
+   podem estar inacessíveis a partir de Londres, onde o robô mora (redes
+   do Reino Unido até a nuvem chinesa costumam ser instáveis ou
+   bloqueadas). O `diagnostico.sh` continua
+   válido (elos 1–5), e o elo 6 (procurar a config de fábrica dentro do
+   robô) passa a procurar também por hosts `volc`, `volces`, `bytedance`.
+2. Para "falar e entender" (nossa primeira meta), há dois caminhos já
+   provados pela comunidade: (a) impersonar os endpoints Volcano localmente
+   como o voice-bridge, ou (b) ignorar o serviço de fábrica e usar o nosso
+   cérebro próprio via SSH/WebSocket, que é o plano deste repositório.
+3. Movimento (WebSocket 59 comandos) e visão (WebRTC porta 8766) já têm
+   mapa pronto — encaixam nas fases seguintes sem engenharia do zero.
+
 ## Consequências para o nosso projeto
 
 1. O cérebro deste repositório roda **dentro do RDK X3** (Linux + Python).
