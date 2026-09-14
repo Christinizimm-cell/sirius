@@ -39,6 +39,52 @@ de IA do Sirius. Ele não é alcançável a partir de ambientes de nuvem com
 rede restrita — precisa ser acessado de um computador na mesma rede do
 cachorro (ou com rota até o host do painel).
 
+## Repositórios da comunidade (engenharia reversa) — achados de 2026-09
+
+Busca no GitHub por "hengbot sirius" revelou quatro repositórios de
+engenharia reversa que mapeiam quase tudo que precisamos:
+
+### [PHCsubOceana/sirius-dev-kit](https://github.com/PHCsubOceana/sirius-dev-kit)
+Documentação não-oficial **verificada em máquina real** (atualizada em set/2026):
+- **Protocolo WebSocket de 59 comandos** (nomes em maiúsculas) — movimento.
+- **REST API nas portas 8088, 8080 e 8766**.
+- **Câmera via WebRTC na porta 8766** — é o caminho para a VISÃO que já
+  existe no hardware (não precisamos criar, só conectar aqui).
+- **~130 tópicos ROS 2, 29 nós**; IMU (quaternion/aceleração) e sensor de
+  distância ToF 4×4 (desabilitado no firmware 2.5.5); telemetria dos 14
+  motores.
+- Inclui o "Studio 360": painel de controle em navegador (FastAPI + React).
+
+### [dspeers/sirius-voice-bridge](https://github.com/dspeers/sirius-voice-bridge)
+**A peça-chave do nosso erro `网络异常`:** o software de fábrica do robô
+fala/entende chamando as **APIs de voz Volcano (Volcengine/ByteDance) na
+nuvem** — hosts chineses embutidos no firmware. Se o robô não alcança esses
+servidores (região, DNS, bloqueio), o painel mostra "erro de rede: não
+conectou ao serviço de modelo", MESMO com a internet do robô funcionando.
+O projeto contorna isso **impersonando os endpoints Volcano na rede local**
+(`/etc/hosts` + iptables + certificado TLS próprio) com Whisper local — ou
+seja: dá para substituir o serviço de voz/modelo sem tocar no app oficial.
+
+### [dspeers/sirius-control-panel](https://github.com/dspeers/sirius-control-panel)
+Painel web local em **um único arquivo Python, sem dependências** (câmera,
+direção, poses, ações) — ótima referência de integração mínima.
+
+### [phichua/sirius-android](https://github.com/phichua/sirius-android)
+App Android independente (firmware 2.4.3) — referência do protocolo do app.
+
+### O que isso muda no diagnóstico
+1. O erro do painel provavelmente **não é falta de internet** do robô, e sim
+   o firmware tentando alcançar endpoints Volcano/ByteDance fixos — que
+   podem estar inacessíveis a partir do Brasil. O `diagnostico.sh` continua
+   válido (elos 1–5), e o elo 6 (procurar a config de fábrica dentro do
+   robô) passa a procurar também por hosts `volc`, `volces`, `bytedance`.
+2. Para "falar e entender" (nossa primeira meta), há dois caminhos já
+   provados pela comunidade: (a) impersonar os endpoints Volcano localmente
+   como o voice-bridge, ou (b) ignorar o serviço de fábrica e usar o nosso
+   cérebro próprio via SSH/WebSocket, que é o plano deste repositório.
+3. Movimento (WebSocket 59 comandos) e visão (WebRTC porta 8766) já têm
+   mapa pronto — encaixam nas fases seguintes sem engenharia do zero.
+
 ## Consequências para o nosso projeto
 
 1. O cérebro deste repositório roda **dentro do RDK X3** (Linux + Python).
